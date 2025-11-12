@@ -1,0 +1,661 @@
+{% extends "pca_base.html" %}
+
+{% block title %}Principal Component Analysis Visualizer{% endblock %}
+
+{% block content %}
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <div class="lg:col-span-1">
+        <div class="border border-black p-6 sticky top-4">
+            <h2 class="text-2xl font-semibold mb-6 mono">run_pca_analysis()</h2>
+
+            <form id="analyzeForm" class="space-y-6">
+                <div class="pt-4">
+                    <button type="submit" class="btn w-full mono">
+                        analyze_iris_dataset()
+                    </button>
+                </div>
+            </form>
+
+            <div id="loading" class="hidden mt-6 text-center mono text-sm">
+                <div class="spinner mx-auto mb-3"></div>
+                <div class="pulse">computing principal components...</div>
+            </div>
+
+            <div id="success" class="hidden mt-6 p-4 border border-black">
+                <p class="mono text-sm mb-2">✓ pca complete</p>
+                <p class="mono text-xs text-gray-700" id="successMessage">
+                    4 features reduced to principal components
+                </p>
+            </div>
+
+            <div class="mt-6 p-4 bg-white border border-black">
+                <h3 class="font-semibold mono text-sm mb-2">what is pca?</h3>
+                <div class="space-y-2 text-xs mono text-gray-800">
+                    <p>→ <span class="font-semibold">Dimensionality Reduction:</span> Reduces features while preserving variance</p>
+                    <p>→ <span class="font-semibold">Unsupervised:</span> Finds patterns without labels</p>
+                    <p>→ <span class="font-semibold">Linear Transform:</span> Creates new axes (PCs) from original features</p>
+                    <p>→ <span class="font-semibold">Variance:</span> PC1 captures most variance, PC2 second most, etc.</p>
+                </div>
+            </div>
+
+            <div class="mt-6 p-4 bg-white border border-black">
+                <h3 class="font-semibold mono text-sm mb-2">what is variance & why does it matter?</h3>
+                <div class="space-y-2 text-xs mono text-gray-800">
+                    <p>→ <span class="font-semibold">Variance = Spread:</span> Measures how much data points differ from the mean</p>
+                    <p>→ <span class="font-semibold">Information Content:</span> High variance = more information, patterns, distinctions</p>
+                    <p>→ <span class="font-semibold">Why PCA Uses It:</span> Directions with high variance separate data best</p>
+                    <p>→ <span class="font-semibold">Goal:</span> Keep dimensions with most variance, discard low-variance ones</p>
+                    <p>→ <span class="font-semibold">Example:</span> If all flowers had same petal length (variance=0), that feature tells us nothing</p>
+                </div>
+            </div>
+
+            <div class="mt-6 p-4 bg-white border border-black">
+                <h3 class="font-semibold mono text-sm mb-2">why 4 principal components?</h3>
+                <div class="space-y-2 text-xs mono text-gray-800">
+                    <p>→ <span class="font-semibold">Input = Output:</span> Iris has 4 features, so PCA creates 4 PCs</p>
+                    <p>→ <span class="font-semibold">Complete Transform:</span> All 4 PCs together preserve 100% of variance</p>
+                    <p>→ <span class="font-semibold">Ranked by Importance:</span> PC1 > PC2 > PC3 > PC4 in variance captured</p>
+                </div>
+            </div>
+
+            <div class="mt-6 p-4 bg-white border border-black">
+                <h3 class="font-semibold mono text-sm mb-2">why visualize PC1 vs PC2?</h3>
+                <div class="space-y-2 text-xs mono text-gray-800">
+                    <p>→ <span class="font-semibold">Maximum Information:</span> These 2 PCs capture the most variance (~95%+)</p>
+                    <p>→ <span class="font-semibold">2D Visualization:</span> Humans can only visualize 2-3 dimensions easily</p>
+                    <p>→ <span class="font-semibold">Best Separation:</span> Shows clearest clustering patterns in the data</p>
+                    <p>→ <span class="font-semibold">Try Other Pairs:</span> PC3 & PC4 show finer details but less variance</p>
+                </div>
+            </div>
+
+            <div class="mt-6 p-4 bg-white border border-black">
+                <h3 class="font-semibold mono text-sm mb-2">pca steps:</h3>
+                <div class="space-y-2 text-xs mono text-gray-800">
+                    <p>1. <span class="font-semibold">Standardize:</span> Mean=0, StdDev=1</p>
+                    <p>2. <span class="font-semibold">Covariance Matrix:</span> Feature relationships</p>
+                    <p>3. <span class="font-semibold">Eigen Decomposition:</span> Find principal components</p>
+                    <p>4. <span class="font-semibold">Project Data:</span> Transform to PC space</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="lg:col-span-2">
+        <div class="border border-black p-6">
+            <div id="visualizationSection" class="hidden">
+                <h2 class="text-xl font-semibold mb-4 mono">component selector</h2>
+
+                <div class="grid grid-cols-2 gap-4 mb-6">
+                    <div>
+                        <label class="font-medium mono text-sm mb-2 block">X-axis component</label>
+                        <select id="pcXSelect" class="mono text-sm">
+                            <option value="0">PC1</option>
+                            <option value="1">PC2</option>
+                            <option value="2">PC3</option>
+                            <option value="3">PC4</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="font-medium mono text-sm mb-2 block">Y-axis component</label>
+                        <select id="pcYSelect" class="mono text-sm">
+                            <option value="0">PC1</option>
+                            <option value="1" selected>PC2</option>
+                            <option value="2">PC3</option>
+                            <option value="3">PC4</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="border border-black bg-white mb-4 overflow-hidden" style="width: 100%; height: 500px;">
+                    <div id="plotContainer" style="width: 100%; height: 100%;"></div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                    <div class="border border-black bg-white overflow-hidden" style="height: 250px;">
+                        <div id="loadingsX" style="width: 100%; height: 100%;"></div>
+                    </div>
+                    <div class="border border-black bg-white overflow-hidden" style="height: 250px;">
+                        <div id="loadingsY" style="width: 100%; height: 100%;"></div>
+                    </div>
+                </div>
+
+                <div class="flex gap-4 mb-4 mt-6">
+                    <button id="showLoadingsBtn" class="btn flex-1 mono">
+                        show loading vectors
+                    </button>
+                    <button id="hideLoadingsBtn" class="btn-outline flex-1 mono hidden">
+                        hide loading vectors
+                    </button>
+                </div>
+            </div>
+
+            <div id="initialState" class="text-center py-16 mono">
+                <p class="text-gray-500 mb-4">← click analyze to run PCA</p>
+                <p class="text-xs text-gray-500">visualization will appear here</p>
+            </div>
+        </div>
+
+        <div class="mt-4 p-4 bg-white border border-black">
+            <h3 class="font-semibold mono text-sm mb-2">legend:</h3>
+            <div class="space-y-1 text-xs mono text-gray-800">
+                <p>● <span class="text-gray-700">colored circles:</span> data points colored by species</p>
+                <p>→ <span class="text-gray-700">arrows:</span> loading vectors (feature contributions)</p>
+                <p>   <span class="text-gray-500">arrow length = feature importance to PC</span></p>
+                <p>   <span class="text-gray-500">arrow direction = positive/negative contribution</span></p>
+            </div>
+        </div>
+
+        <div class="mt-4 p-4 bg-white border border-black">
+            <h3 class="font-semibold mono text-sm mb-2">interpreting pca plots:</h3>
+            <p class="text-xs mono text-gray-800 leading-relaxed">
+                <span class="font-semibold">Principal Components (PCs)</span> are new axes that capture maximum variance. 
+                <span class="font-semibold">PC1</span> captures the most variance in the data, <span class="font-semibold">PC2</span> 
+                captures the second most (orthogonal to PC1), and so on. Points close together in PC space are similar in the 
+                original feature space. <span class="font-semibold">Loading vectors</span> show how original features contribute 
+                to each PC—longer arrows mean that feature is more important for that component.
+            </p>
+        </div>
+
+        <div id="varianceSection" class="hidden mt-4 border border-black p-6">
+            <h3 class="text-xl font-semibold mb-4 mono">variance explained</h3>
+            <div id="screePlot" style="width: 100%; height: 400px;"></div>
+        </div>
+
+        <div id="loadingsSection" class="hidden mt-4 border border-black p-6">
+            <div class="grid grid-cols-2 gap-4">
+                <div id="loadingsPC1" style="width: 100%; height: 300px;"></div>
+                <div id="loadingsPC2" style="width: 100%; height: 300px;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+<script>
+    const analyzeForm = document.getElementById('analyzeForm');
+    const loading = document.getElementById('loading');
+    const success = document.getElementById('success');
+    const visualizationSection = document.getElementById('visualizationSection');
+    const varianceSection = document.getElementById('varianceSection');
+    const loadingsSection = document.getElementById('loadingsSection');
+    const initialState = document.getElementById('initialState');
+    const plotContainer = document.getElementById('plotContainer');
+    const pcXSelect = document.getElementById('pcXSelect');
+    const pcYSelect = document.getElementById('pcYSelect');
+    const showLoadingsBtn = document.getElementById('showLoadingsBtn');
+    const hideLoadingsBtn = document.getElementById('hideLoadingsBtn');
+
+    let pcaData = null;
+    let showLoadings = false;
+    let axisRanges = null; // Store original axis ranges
+
+    const speciesColors = {
+        'setosa': '#ef4444',
+        'versicolor': '#22c55e',
+        'virginica': '#3b82f6'
+    };
+
+    analyzeForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        loading.classList.remove('hidden');
+        success.classList.add('hidden');
+        visualizationSection.classList.add('hidden');
+        varianceSection.classList.add('hidden');
+        loadingsSection.classList.add('hidden');
+
+        try {
+            const response = await fetch('/analyze', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                pcaData = data;
+                
+                success.classList.remove('hidden');
+                visualizationSection.classList.remove('hidden');
+                varianceSection.classList.remove('hidden');
+                loadingsSection.classList.remove('hidden');
+                initialState.classList.add('hidden');
+
+                displayPCAPlot();
+                displayScreePlot();
+                displayLoadingsPlots();
+                updateLoadingCharts();
+            } else {
+                alert('Error: ' + data.error);
+            }
+        } catch (error) {
+            alert('Error performing PCA: ' + error.message);
+        } finally {
+            loading.classList.add('hidden');
+        }
+    });
+
+    pcXSelect.addEventListener('change', () => {
+        displayPCAPlot();
+        updateLoadingCharts();
+    });
+    pcYSelect.addEventListener('change', () => {
+        displayPCAPlot();
+        updateLoadingCharts();
+    });
+
+    showLoadingsBtn.addEventListener('click', () => {
+        showLoadings = true;
+        showLoadingsBtn.classList.add('hidden');
+        hideLoadingsBtn.classList.remove('hidden');
+        displayPCAPlot();
+    });
+
+    hideLoadingsBtn.addEventListener('click', () => {
+        showLoadings = false;
+        hideLoadingsBtn.classList.add('hidden');
+        showLoadingsBtn.classList.remove('hidden');
+        displayPCAPlot();
+    });
+
+    function displayPCAPlot() {
+        if (!pcaData) return;
+
+        const pcX = parseInt(pcXSelect.value);
+        const pcY = parseInt(pcYSelect.value);
+
+        if (pcX === pcY) {
+            alert('Please select different principal components for X and Y axes');
+            return;
+        }
+
+        const traces = [];
+        const uniqueSpecies = [...new Set(pcaData.species)];
+
+        // Collect all points for range calculation
+        let allX = [];
+        let allY = [];
+
+        // Plot points by species with explicit color mapping
+        uniqueSpecies.forEach(species => {
+            const indices = pcaData.species.map((s, i) => s === species ? i : -1).filter(i => i !== -1);
+            const x = indices.map(i => pcaData.pc_scores[i][pcX]);
+            const y = indices.map(i => pcaData.pc_scores[i][pcY]);
+
+            allX = allX.concat(x);
+            allY = allY.concat(y);
+
+            // Use explicit color based on species name
+            let color = '#6b7280'; // default gray
+            if (species.toLowerCase().includes('setosa')) color = '#ef4444';
+            else if (species.toLowerCase().includes('versicolor')) color = '#22c55e';
+            else if (species.toLowerCase().includes('virginica')) color = '#3b82f6';
+
+            traces.push({
+                x: x,
+                y: y,
+                mode: 'markers',
+                type: 'scatter',
+                name: species,
+                marker: {
+                    color: color,
+                    size: 10,
+                    opacity: 0.7,
+                    line: { color: 'black', width: 1 }
+                }
+            });
+        });
+
+        // Calculate and store axis ranges based on data points only (first time or when components change)
+        if (!axisRanges || axisRanges.pcX !== pcX || axisRanges.pcY !== pcY) {
+            const padding = 0.5;
+            const minX = Math.min(...allX) - padding;
+            const maxX = Math.max(...allX) + padding;
+            const minY = Math.min(...allY) - padding;
+            const maxY = Math.max(...allY) + padding;
+            
+            axisRanges = {
+                x: [minX, maxX],
+                y: [minY, maxY],
+                pcX: pcX,
+                pcY: pcY
+            };
+        }
+
+        // Add loading vectors if enabled
+        const annotations = [];
+        if (showLoadings) {
+            // Calculate scale factor based on axis ranges
+            const xRange = axisRanges.x[1] - axisRanges.x[0];
+            const yRange = axisRanges.y[1] - axisRanges.y[0];
+            const avgRange = (xRange + yRange) / 2;
+            const scaleFactor = avgRange * 0.35; // Scale to ~35% of average range
+            
+            pcaData.features.forEach((feature, i) => {
+                const loadingX = pcaData.eigenvectors[i][pcX] * scaleFactor;
+                const loadingY = pcaData.eigenvectors[i][pcY] * scaleFactor;
+
+                traces.push({
+                    x: [0, loadingX],
+                    y: [0, loadingY],
+                    mode: 'lines',
+                    type: 'scatter',
+                    showlegend: false,
+                    line: {
+                        color: 'black',
+                        width: 2
+                    },
+                    hoverinfo: 'skip'
+                });
+
+                annotations.push({
+                    x: loadingX * 1.15,
+                    y: loadingY * 1.15,
+                    text: feature,
+                    showarrow: false,
+                    font: {
+                        family: 'JetBrains Mono, monospace',
+                        size: 11,
+                        color: 'black'
+                    },
+                    bgcolor: 'rgba(255, 255, 255, 0.8)',
+                    bordercolor: 'black',
+                    borderwidth: 1,
+                    borderpad: 4
+                });
+            });
+        }
+
+        const layout = {
+            title: {
+                text: `PC${pcX + 1} vs PC${pcY + 1}`,
+                font: { family: 'JetBrains Mono, monospace', size: 16 }
+            },
+            xaxis: {
+                title: `PC${pcX + 1} (${pcaData.variance_explained[pcX].toFixed(2)}% variance)`,
+                gridcolor: '#e5e7eb',
+                zeroline: true,
+                zerolinecolor: '#9ca3af',
+                zerolinewidth: 2,
+                range: axisRanges.x
+            },
+            yaxis: {
+                title: `PC${pcY + 1} (${pcaData.variance_explained[pcY].toFixed(2)}% variance)`,
+                gridcolor: '#e5e7eb',
+                zeroline: true,
+                zerolinecolor: '#9ca3af',
+                zerolinewidth: 2,
+                range: axisRanges.y
+            },
+            hovermode: 'closest',
+            showlegend: true,
+            legend: {
+                x: 1,
+                y: 1,
+                xanchor: 'right',
+                bgcolor: 'rgba(255, 255, 255, 0.9)',
+                bordercolor: 'black',
+                borderwidth: 1
+            },
+            annotations: annotations,
+            paper_bgcolor: 'white',
+            plot_bgcolor: 'white',
+            margin: { l: 60, r: 60, t: 50, b: 60 }
+        };
+
+        const config = {
+            responsive: true,
+            displayModeBar: false,
+            staticPlot: true
+        };
+
+        Plotly.newPlot('plotContainer', traces, layout, config);
+    }
+
+    function updateLoadingCharts() {
+        if (!pcaData) return;
+
+        const pcX = parseInt(pcXSelect.value);
+        const pcY = parseInt(pcYSelect.value);
+
+        // X-axis loadings
+        const loadingsX = pcaData.features.map((f, i) => pcaData.eigenvectors[i][pcX]);
+        const colorsX = loadingsX.map(v => v > 0 ? '#22c55e' : '#ef4444');
+
+        const traceX = {
+            y: pcaData.features,
+            x: loadingsX,
+            type: 'bar',
+            orientation: 'h',
+            marker: {
+                color: colorsX,
+                opacity: 0.7,
+                line: { color: 'black', width: 1 }
+            }
+        };
+
+        const layoutX = {
+            title: {
+                text: `PC${pcX + 1} (${pcaData.variance_explained[pcX].toFixed(1)}%)`,
+                font: { family: 'JetBrains Mono, monospace', size: 12 }
+            },
+            xaxis: {
+                title: '',
+                gridcolor: '#e5e7eb',
+                zeroline: true,
+                zerolinecolor: 'black',
+                zerolinewidth: 2,
+                range: [-1, 1]
+            },
+            yaxis: {
+                title: '',
+                tickfont: { size: 10 }
+            },
+            paper_bgcolor: 'white',
+            plot_bgcolor: 'white',
+            margin: { l: 100, r: 10, t: 30, b: 30 }
+        };
+
+        Plotly.newPlot('loadingsX', [traceX], layoutX, { responsive: true, displayModeBar: false, staticPlot: true });
+
+        // Y-axis loadings
+        const loadingsY = pcaData.features.map((f, i) => pcaData.eigenvectors[i][pcY]);
+        const colorsY = loadingsY.map(v => v > 0 ? '#22c55e' : '#ef4444');
+
+        const traceY = {
+            y: pcaData.features,
+            x: loadingsY,
+            type: 'bar',
+            orientation: 'h',
+            marker: {
+                color: colorsY,
+                opacity: 0.7,
+                line: { color: 'black', width: 1 }
+            }
+        };
+
+        const layoutY = {
+            title: {
+                text: `PC${pcY + 1} (${pcaData.variance_explained[pcY].toFixed(1)}%)`,
+                font: { family: 'JetBrains Mono, monospace', size: 12 }
+            },
+            xaxis: {
+                title: '',
+                gridcolor: '#e5e7eb',
+                zeroline: true,
+                zerolinecolor: 'black',
+                zerolinewidth: 2,
+                range: [-1, 1]
+            },
+            yaxis: {
+                title: '',
+                tickfont: { size: 10 }
+            },
+            paper_bgcolor: 'white',
+            plot_bgcolor: 'white',
+            margin: { l: 100, r: 10, t: 30, b: 30 }
+        };
+
+        Plotly.newPlot('loadingsY', [traceY], layoutY, { responsive: true, displayModeBar: false, staticPlot: true });
+    }
+
+    function displayScreePlot() {
+        if (!pcaData) return;
+
+        const traces = [
+            {
+                x: pcaData.variance_explained.map((_, i) => `PC${i + 1}`),
+                y: pcaData.variance_explained,
+                type: 'bar',
+                name: 'Individual',
+                marker: {
+                    color: '#3b82f6',
+                    opacity: 0.7,
+                    line: { color: 'black', width: 1 }
+                }
+            },
+            {
+                x: pcaData.cumulative_variance.map((_, i) => `PC${i + 1}`),
+                y: pcaData.cumulative_variance,
+                type: 'scatter',
+                mode: 'lines+markers',
+                name: 'Cumulative',
+                marker: {
+                    color: '#ef4444',
+                    size: 10,
+                    line: { color: 'black', width: 1 }
+                },
+                line: {
+                    color: '#ef4444',
+                    width: 3
+                },
+                yaxis: 'y2'
+            }
+        ];
+
+        const layout = {
+            title: {
+                text: 'Scree Plot - Variance Explained',
+                font: { family: 'JetBrains Mono, monospace', size: 16 }
+            },
+            xaxis: {
+                title: 'Principal Component',
+                gridcolor: '#e5e7eb'
+            },
+            yaxis: {
+                title: 'Variance Explained (%)',
+                gridcolor: '#e5e7eb'
+            },
+            yaxis2: {
+                title: 'Cumulative Variance (%)',
+                overlaying: 'y',
+                side: 'right',
+                gridcolor: 'transparent'
+            },
+            showlegend: true,
+            legend: {
+                x: 0.7,
+                y: 0.5,
+                bgcolor: 'rgba(255, 255, 255, 0.9)',
+                bordercolor: 'black',
+                borderwidth: 1
+            },
+            paper_bgcolor: 'white',
+            plot_bgcolor: 'white',
+            margin: { l: 60, r: 60, t: 50, b: 60 }
+        };
+
+        const config = {
+            responsive: true,
+            displayModeBar: false,
+            staticPlot: true
+        };
+
+        Plotly.newPlot('screePlot', traces, layout, config);
+    }
+
+    function displayLoadingsPlots() {
+        if (!pcaData) return;
+
+        // PC1 Loadings
+        const loadingsPC1 = pcaData.features.map((f, i) => pcaData.eigenvectors[i][0]);
+        const colorsPC1 = loadingsPC1.map(v => v > 0 ? '#22c55e' : '#ef4444');
+
+        const tracePC1 = {
+            y: pcaData.features,
+            x: loadingsPC1,
+            type: 'bar',
+            orientation: 'h',
+            marker: {
+                color: colorsPC1,
+                opacity: 0.7,
+                line: { color: 'black', width: 1 }
+            }
+        };
+
+        const layoutPC1 = {
+            title: {
+                text: `PC1 Loadings (${pcaData.variance_explained[0].toFixed(2)}%)`,
+                font: { family: 'JetBrains Mono, monospace', size: 14 }
+            },
+            xaxis: {
+                title: 'Loading',
+                gridcolor: '#e5e7eb',
+                zeroline: true,
+                zerolinecolor: 'black',
+                zerolinewidth: 2
+            },
+            yaxis: {
+                title: ''
+            },
+            paper_bgcolor: 'white',
+            plot_bgcolor: 'white',
+            margin: { l: 120, r: 20, t: 40, b: 40 }
+        };
+
+        Plotly.newPlot('loadingsPC1', [tracePC1], layoutPC1, { responsive: true, displayModeBar: false, staticPlot: true });
+
+        // PC2 Loadings
+        const loadingsPC2 = pcaData.features.map((f, i) => pcaData.eigenvectors[i][1]);
+        const colorsPC2 = loadingsPC2.map(v => v > 0 ? '#22c55e' : '#ef4444');
+
+        const tracePC2 = {
+            y: pcaData.features,
+            x: loadingsPC2,
+            type: 'bar',
+            orientation: 'h',
+            marker: {
+                color: colorsPC2,
+                opacity: 0.7,
+                line: { color: 'black', width: 1 }
+            }
+        };
+
+        const layoutPC2 = {
+            title: {
+                text: `PC2 Loadings (${pcaData.variance_explained[1].toFixed(2)}%)`,
+                font: { family: 'JetBrains Mono, monospace', size: 14 }
+            },
+            xaxis: {
+                title: 'Loading',
+                gridcolor: '#e5e7eb',
+                zeroline: true,
+                zerolinecolor: 'black',
+                zerolinewidth: 2
+            },
+            yaxis: {
+                title: ''
+            },
+            paper_bgcolor: 'white',
+            plot_bgcolor: 'white',
+            margin: { l: 120, r: 20, t: 40, b: 40 }
+        };
+
+        Plotly.newPlot('loadingsPC2', [tracePC2], layoutPC2, { responsive: true, displayModeBar: false, staticPlot: true });
+    }
+</script>
+{% endblock %}
