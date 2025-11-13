@@ -23,9 +23,18 @@
 
             <div id="success" class="hidden mt-6 p-4 border border-black">
                 <p class="mono text-sm mb-2">✓ pca complete</p>
-                <p class="mono text-xs text-gray-700" id="successMessage">
+                <p class="mono text-xs text-gray-700 mb-4" id="successMessage">
                     4 features reduced to principal components
                 </p>
+                <div class="border-t border-gray-300 pt-3 mt-3">
+                    <p class="mono text-xs font-semibold mb-2">interactive features:</p>
+                    <div class="space-y-1 text-xs mono text-gray-700">
+                        <p>• <span class="font-semibold">Select Components:</span> Choose different PC pairs to see how variance changes</p>
+                        <p>• <span class="font-semibold">Show Loading Vectors:</span> View arrows showing which original features contribute to each PC</p>
+                        <p>• <span class="font-semibold">Loading Charts:</span> Bar charts below main plot show feature contributions for selected PCs</p>
+                        <p>• <span class="font-semibold">Scree Plot:</span> Scroll down to see variance explained by each component</p>
+                    </div>
+                </div>
             </div>
 
             <div class="mt-6 p-4 bg-white border border-black">
